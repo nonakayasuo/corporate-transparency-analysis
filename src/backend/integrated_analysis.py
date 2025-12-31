@@ -50,6 +50,11 @@ try:
 except ImportError:
     search_political_contributions = None
 
+try:
+    from src.backend.source_info_generator import generate_all_source_info
+except ImportError:
+    generate_all_source_info = None
+
 
 def setup_directories():
     """必要なディレクトリを作成"""
@@ -399,6 +404,20 @@ def generate_report(
     """
     分析レポートを生成
     """
+    # ソース情報を生成
+    source_references = []
+    if generate_all_source_info is not None:
+        try:
+            source_references = generate_all_source_info(
+                edgar_data=edgar_data,
+                sugartrail_data=sugartrail_data,
+                japan_data=japan_data,
+                political_data=political_data,
+                company_name=company_name,
+            )
+        except Exception as e:
+            print(f"  → 警告: ソース情報の生成に失敗: {e}")
+
     report = {
         "company_name": company_name,
         "analysis_date": datetime.now().isoformat(),
@@ -413,6 +432,7 @@ def generate_report(
         "japan_data": japan_data,
         "political_contributions_data": political_data,
         "network_analysis": network,
+        "source_references": source_references,
         "summary": {
             "total_entities": len(network.get("entities", [])),
             "total_relationships": len(network.get("relationships", [])),

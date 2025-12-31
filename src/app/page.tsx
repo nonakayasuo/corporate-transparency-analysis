@@ -6,6 +6,7 @@ import { EdgarTimeline } from "@/components/EdgarTimeline";
 import { EntityTypeChart } from "@/components/EntityTypeChart";
 import { NetworkGraph } from "@/components/NetworkGraph";
 import { PoliticalContributionsChart } from "@/components/PoliticalContributionsChart";
+import { SourceReferences } from "@/components/SourceReferences";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -63,6 +64,13 @@ interface AnalysisResult {
     total_entities: number;
     total_relationships: number;
   };
+  source_references?: Array<{
+    name: string;
+    url?: string;
+    description?: string;
+    type: "api" | "website" | "document" | "database";
+    timestamp?: string;
+  }>;
 }
 
 export default function Home() {
@@ -363,6 +371,12 @@ export default function Home() {
                     data={result.political_contributions_data}
                   />
                 )}
+
+                {/* ソース参照先 */}
+                {result.source_references &&
+                  result.source_references.length > 0 && (
+                    <SourceReferences sources={result.source_references} />
+                  )}
 
                 {/* 詳細データタブ */}
                 <Card>
