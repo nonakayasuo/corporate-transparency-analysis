@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
-import path from "path";
 
-const execAsync = promisify(exec);
+// FastAPIサーバーのURL（環境変数から取得、デフォルトはlocalhost:8000）
+const FASTAPI_URL = process.env.FASTAPI_URL || "http://localhost:8000";
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,98 +9,101 @@ export async function POST(request: NextRequest) {
     const { company, country, website, officer } = body;
 
     if (!company || !country) {
+      return NextResponse.json({ error: "企業名と国は必須です" }, { status: 400 });
+    }
+
+    // FastAPIサーバーにリクエストを送信
+    let response: Response;
+    try {
+      response = await fetch(`${FASTAPI_URL}/analyze`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          company,
+          country,
+          website: website || undefined,
+          officer: officer || undefined,
+        }),
+      });
+    } catch (fetchError) {
+      console.error("FastAPIサーバーへの接続エラー:", fetchError);
       return NextResponse.json(
-        { error: "企業名と国は必須です" },
-        { status: 400 }
-      );
-    }
-
-    // プロジェクトルートのパスを取得
-    const projectRoot = process.cwd();
-
-    // 統合分析スクリプトを実行
-    let command = `cd "${projectRoot}" && uv run python src/backend/integrated_analysis.py --company "${company}" --country ${country}`;
-
-    if (website) {
-      command += ` --website "${website}"`;
-    }
-
-    if (officer) {
-      command += ` --officer "${officer}"`;
-    }
-
-    const { stdout, stderr } = await execAsync(command, {
-      maxBuffer: 10 * 1024 * 1024, // 10MB
-      timeout: 300000, // 5分
-    });
-
-    // uvのビルドメッセージを除外して、実際のエラーのみをログに記録
-    if (stderr) {
-      // uvの正常なビルドメッセージを除外（正規表現でより正確に判定）
-      const uvBuildPattern = /^(Building|Built|Uninstalled|Installed).*$/m;
-      const stderrLines = stderr.split("\n");
-      const actualErrors = stderrLines.filter(
-        (line) => line.trim() && !uvBuildPattern.test(line.trim())
-      );
-
-      if (actualErrors.length > 0) {
-        // 実際のエラーのみをログに記録
-        console.error("Pythonスクリプトのエラー出力:", actualErrors.join("\n"));
-      }
-    }
-
-    // 出力からJSONファイルのパスを抽出
-    const outputMatch = stdout.match(/data\/output\/([^\s]+\.json)/);
-
-    if (outputMatch) {
-      const fs = await import("fs/promises");
-      const jsonPath = path.join(projectRoot, "data", "output", outputMatch[1]);
-
-      try {
-        const jsonContent = await fs.readFile(jsonPath, "utf-8");
-        const analysisResult = JSON.parse(jsonContent);
-
-        return NextResponse.json({
-          success: true,
-          data: analysisResult,
-          output: stdout,
-          stderr: stderr || undefined,
-        });
-      } catch (fileError) {
-        console.error("JSONファイルの読み込みエラー:", fileError);
-        return NextResponse.json({
+        {
           success: false,
-          error: "結果ファイルの読み込みに失敗しました",
-          output: stdout,
-          stderr: stderr || undefined,
-          details:
-            fileError instanceof Error ? fileError.message : String(fileError),
-        });
-      }
+          error: "FastAPIサーバーに接続できません。サーバーが起動しているか確認してください。",
+          details: `接続先: ${FASTAPI_URL}`,
+          fetchError: fetchError instanceof Error ? fetchError.message : String(fetchError),
+        },
+        { status: 503 }
+      );
     }
 
-    // JSONファイルが見つからない場合でも、stdoutを返す
+    // レスポンスが404の場合
+    if (response.status === 404) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "FastAPIサーバーのエンドポイントが見つかりません。",
+          details: `エンドポイント: ${FASTAPI_URL}/analyze`,
+          hint: "FastAPIサーバーが正しく起動しているか、エンドポイントが正しいか確認してください。",
+        },
+        { status: 503 }
+      );
+    }
+
+    let data;
+    try {
+      data = await response.json();
+    } catch (jsonError) {
+      const text = await response.text();
+      console.error("JSON解析エラー:", jsonError, "レスポンス:", text);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "FastAPIサーバーからのレスポンスの解析に失敗しました。",
+          details: text.substring(0, 500),
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: data.detail || "分析中にエラーが発生しました",
+        },
+        { status: response.status }
+      );
+    }
+
     return NextResponse.json({
-      success: true,
-      data: null,
-      output: stdout,
-      stderr: stderr || undefined,
-      warning: "結果ファイルが見つかりませんでした。出力を確認してください。",
+      success: data.success,
+      data: data.data,
+      message: data.message,
     });
   } catch (error: unknown) {
     console.error("分析エラー:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "分析中にエラーが発生しました";
-    const errorDetails =
-      error instanceof Error && "stderr" in error
-        ? (error as { stderr?: string; stdout?: string }).stderr
-        : undefined;
+    const errorMessage = error instanceof Error ? error.message : "分析中にエラーが発生しました";
+
+    // FastAPIサーバーに接続できない場合
+    if (error instanceof TypeError && error.message.includes("fetch")) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "FastAPIサーバーに接続できません。サーバーが起動しているか確認してください。",
+          details: `接続先: ${FASTAPI_URL}`,
+        },
+        { status: 503 }
+      );
+    }
 
     return NextResponse.json(
       {
         success: false,
         error: errorMessage,
-        details: errorDetails,
       },
       { status: 500 }
     );

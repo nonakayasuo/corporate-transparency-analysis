@@ -15,29 +15,40 @@ Bellingcatの3つのツール（EDGAR、sugartrail、name-variant-search）を�
 - Python 3.9以上
 - Git
 - uv（高速なPythonパッケージマネージャー）
-- Node.js 18以上（フロントエンド用）
+- Node.js 18以上、pnpm（フロントエンド用）
 
 ## セットアップ手順
 
-### ステップ1: リポジトリの準備
+### ステップ1: 必要なツールリポジトリの準備
 
-#### オプションA: リポジトリをフォークする場合
+**注意**: 以下のツールリポジトリは、対応する機能を使用する場合にのみ必要です。
 
-1. GitHubアカウントにログイン
-2. 以下のリポジトリをフォーク：
-   - https://github.com/bellingcat/EDGAR
-   - https://github.com/bellingcat/sugartrail
-   - https://github.com/bellingcat/name-variant-search
-
-#### オプションB: 直接クローンする場合
+#### EDGAR（米国企業分析用 - 必須）
 
 ```bash
 mkdir -p tools
 cd tools
-
-# 各リポジトリをクローン
 git clone https://github.com/bellingcat/EDGAR.git
+cd ..
+```
+
+#### sugartrail（英国企業分析用 - オプション）
+
+```bash
+cd tools
 git clone https://github.com/bellingcat/sugartrail.git
+cd ..
+# インストール
+uv pip install -e tools/sugartrail
+```
+
+#### name-variant-search（オプション）
+
+このツールはPython実装で代替されているため、クローンは不要です。
+より高度な機能が必要な場合のみ、以下のコマンドでクローンできます：
+
+```bash
+cd tools
 git clone https://github.com/bellingcat/name-variant-search.git
 cd ..
 ```
@@ -75,17 +86,11 @@ uv --version
 #### プロジェクトの初期化
 
 ```bash
-# プロジェクトルートに移動（自分のプロジェクトディレクトリに置き換えてください）
-cd /path/to/corporate-transparency-analysis
-
-# uvを使用してプロジェクトを初期化（既にpyproject.tomlがある場合はスキップ）
-uv init
+# プロジェクトルートに移動
+cd corporate-transparency-analysis
 
 # 依存関係をインストール（pyproject.tomlから自動的に読み込まれる）
 uv sync
-
-# または、開発用依存関係も含めてインストール
-uv sync --dev
 ```
 
 #### 仮想環境のアクティベート
@@ -95,72 +100,26 @@ uv sync --dev
 source .venv/bin/activate  # macOS/Linux
 # または
 # .venv\Scripts\activate  # Windows
-
-# または、uv runを使用して直接コマンドを実行（仮想環境の管理が不要）
-uv run python src/backend/basic_analysis.py --company "Company Name"
 ```
 
-### ステップ4: 各ツールの個別セットアップ
-
-#### EDGARのセットアップ
+### ステップ4: EDGARツールの依存関係をインストール
 
 ```bash
-cd tools/EDGAR
-
-# READMEを確認
-cat README.md
-
-# 一般的なセットアップ（ツールによって異なる場合があります）
-# pip install edgartools  # またはツール固有のパッケージ
+# プロジェクトルートで実行
+uv add typer pydantic jsonlines tenacity xmltodict click python-dateutil
 ```
 
-**EDGARの主な機能:**
-- SEC EDGARデータベースからの企業データ取得
-- 財務報告書のダウンロード
-- 企業情報の検索
-
-#### sugartrailのセットアップ
+### ステップ5: フロントエンドのセットアップ
 
 ```bash
-cd tools/sugartrail
-
-# READMEを確認
-cat README.md
-
-# 一般的なセットアップ
-# pip install -r requirements.txt
+# プロジェクトルートで実行
+pnpm install
 ```
 
-**sugartrailの主な機能:**
-- Companies Houseデータの取得
-- 企業ネットワークの可視化
-- 役員・住所の関係性分析
-
-#### name-variant-searchのセットアップ
+### ステップ6: データディレクトリの作成
 
 ```bash
-cd tools/name-variant-search
-
-# READMEを確認
-cat README.md
-
-# 一般的なセットアップ
-# npm install  # JavaScriptベースの場合
-# または
-# pip install -r requirements.txt  # Pythonベースの場合
-```
-
-**name-variant-searchの主な機能:**
-- 人名のバリエーション生成
-- 異なる表記の検索
-- 同一人物の特定支援
-
-### ステップ5: データディレクトリの作成
-
-```bash
-# プロジェクトルートに移動（自分のプロジェクトディレクトリに置き換えてください）
-cd /path/to/corporate-transparency-analysis
-
+# プロジェクトルートで実行
 # データ保存用ディレクトリを作成
 mkdir -p data/edgar
 mkdir -p data/sugartrail
@@ -168,7 +127,7 @@ mkdir -p data/name_variants
 mkdir -p data/output
 ```
 
-### ステップ6: APIキーの設定
+### ステップ7: APIキーの設定
 
 `.env.example`をコピーして`.env`ファイルを作成し、必要なAPIキーを設定：
 
@@ -180,86 +139,134 @@ cp .env.example .env
 - `HOUJIN_BANGOU_API_ID`: 法人番号システムAPI（日本の企業情報用）
 - `COMPANIES_HOUSE_USERNAME`, `COMPANIES_HOUSE_PASSWORD`: Companies House API（英国企業情報用）
 - `GBIZINFO_API_KEY`: gBizINFO API（財務データ用、オプション）
+- `FEC_API_KEY`: FEC (Federal Election Commission) API（米国の政治献金データ用、オプション）
 
-### ステップ7: 動作確認
+注意: OpenSecrets APIは2025年4月15日に廃止されました。
+
+### ステップ8: 動作確認
+
+FastAPIサーバーを起動して動作確認を行います：
 
 ```bash
-# プロジェクトルートに戻る（自分のプロジェクトディレクトリに置き換えてください）
-cd /path/to/corporate-transparency-analysis
+# バックエンドサーバーを起動
+pnpm dev:api
 
-# 基本的な動作確認
-uv run python -c "import pandas, numpy, matplotlib; print('基本パッケージ OK')"
-
-# スクリプトの動作確認
-uv run python src/backend/basic_analysis.py --help
-
-# EDGARの動作確認
-cd tools/EDGAR
-uv run python -c "import sys; print('EDGAR setup OK')"  # またはツール固有のテスト
-cd ../..
-
-# sugartrailの動作確認
-cd tools/sugartrail
-uv run python -c "import sys; print('sugartrail setup OK')"  # またはツール固有のテスト
-cd ../..
-
-# name-variant-searchの動作確認
-cd tools/name-variant-search
-# ツール固有のテストコマンドを実行
-cd ../..
+# 別のターミナルでヘルスチェック
+curl http://localhost:8000/health
 ```
+
+正常に動作していれば、`{"status":"healthy","timestamp":"..."}` が返されます。
 
 ## 使用方法
 
-### コマンドライン
+### 開発サーバーの起動
 
 ```bash
-# 日本の企業分析
-uv run python src/backend/integrated_analysis.py --company "BMSG" --country JP --website "https://bmsg.tokyo/"
-
-# 米国企業分析
-uv run python src/backend/integrated_analysis.py --company "Apple Inc." --country US
-
-# 英国企業分析
-uv run python src/backend/integrated_analysis.py --company "Company Name" --country UK
+# プロジェクトルートで実行
+pnpm dev:all
 ```
+
+これにより、FastAPIサーバー（ポート8000）とNext.js開発サーバー（ポート3000）が同時に起動します。
+
+### APIエンドポイント
+
+FastAPIサーバーが起動すると、以下のエンドポイントが利用可能になります：
+
+- **APIドキュメント**: http://localhost:8000/docs (Swagger UI)
+- **ReDoc**: http://localhost:8000/redoc
+- **ヘルスチェック**: GET http://localhost:8000/health
+- **統合分析**: POST http://localhost:8000/analyze
+- **基本分析**: POST http://localhost:8000/basic-analysis
+- **日本の企業情報**: POST http://localhost:8000/japan-company
+- **財務データ**: POST http://localhost:8000/financial-data
+- **PDF生成**: POST http://localhost:8000/generate-pdf
 
 ### Web UI
 
-```bash
-# フロントエンドの起動
-cd frontend
-npm install
-npm run dev
-```
-
 ブラウザで `http://localhost:3000` にアクセスして使用できます。
+
+## コード品質管理
+
+### Lintとフォーマット
+
+```bash
+# Lintチェック（エラーのみ表示）
+pnpm lint
+
+# Lintエラーを自動修正
+pnpm lint:fix
+
+# フォーマットチェック
+pnpm format
+
+# コードチェック（Lint + フォーマット）
+pnpm check
+
+# コードチェックと自動修正
+pnpm check:fix
+```
 
 ## ディレクトリ構造
 
 ```
 corporate-transparency-analysis/
 ├── README.md                 # このファイル
+├── package.json              # Node.js依存関係
 ├── pyproject.toml            # Python依存関係
+├── pnpm-lock.yaml            # pnpmロックファイル
+├── uv.lock                   # uvロックファイル
+├── tsconfig.json             # TypeScript設定
+├── next.config.ts            # Next.js設定
+├── biome.json                # Biome（Lint/フォーマット）設定
+├── components.json           # shadcn/ui設定
+├── eslint.config.mjs         # ESLint設定
+├── postcss.config.mjs        # PostCSS設定
+├── .env.example              # 環境変数テンプレート
 ├── src/
-│   ├── backend/             # バックエンド処理（統合分析スクリプト）
-│   │   ├── basic_analysis.py
-│   │   ├── integrated_analysis.py
-│   │   ├── japan_corporate_fetcher.py
-│   │   ├── financial_data_fetcher.py
-│   │   ├── edgar_integration.py
-│   │   ├── sugartrail_integration.py
-│   │   └── name_variant_integration.py
-│   └── frontend/            # Next.jsフロントエンド
-├── tools/                    # 各ツールのリポジトリ
-│   ├── EDGAR/
-│   ├── sugartrail/
-│   └── name-variant-search/
+│   ├── app/                  # Next.jsアプリケーション
+│   │   ├── api/              # APIルート
+│   │   │   └── analyze/
+│   │   │       └── route.ts   # 分析APIルート
+│   │   ├── layout.tsx        # レイアウト
+│   │   ├── page.tsx          # メインページ
+│   │   ├── globals.css       # グローバルスタイル
+│   │   └── favicon.ico       # ファビコン
+│   ├── backend/              # バックエンド処理
+│   │   ├── api_server.py     # FastAPIサーバー
+│   │   ├── integrated_analysis.py      # 統合分析
+│   │   ├── basic_analysis.py            # 基本分析
+│   │   ├── japan_corporate_fetcher.py   # 日本の企業情報取得
+│   │   ├── financial_data_fetcher.py    # 財務データ取得
+│   │   ├── edgar_integration.py         # EDGAR統合
+│   │   ├── sugartrail_integration.py    # sugartrail統合
+│   │   ├── name_variant_integration.py  # 名前バリエーション統合
+│   │   ├── political_contributions_integration.py  # 政治献金統合
+│   │   └── generate_usage_purpose_pdf.py           # PDF生成
+│   ├── components/           # Reactコンポーネント
+│   │   ├── NetworkGraph.tsx  # ネットワークグラフ
+│   │   └── ui/               # shadcn/uiコンポーネント
+│   │       ├── button.tsx
+│   │       ├── card.tsx
+│   │       ├── input.tsx
+│   │       ├── select.tsx
+│   │       └── tabs.tsx
+│   └── lib/                  # ユーティリティ
+│       └── utils.ts
+├── tools/                    # 各ツールのリポジトリ（オプション）
+│   ├── EDGAR/                # EDGARツール（米国企業分析用）
+│   ├── sugartrail/           # sugartrailツール（英国企業分析用）
+│   └── name-variant-search/  # name-variant-searchツール（オプション）
 ├── data/                     # 分析データの保存先
-│   ├── edgar/
-│   ├── sugartrail/
-│   ├── name_variants/
-│   └── output/
+│   ├── edgar/                # EDGARデータ
+│   ├── sugartrail/           # sugartrailデータ
+│   ├── name_variants/        # 名前バリエーションデータ
+│   └── output/               # 分析結果JSONファイル
+├── public/                   # 静的ファイル
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── next.svg
+│   ├── vercel.svg
+│   └── window.svg
 └── docs/                     # ドキュメント
 ```
 
@@ -268,6 +275,17 @@ corporate-transparency-analysis/
 ### 法人番号システムAPI（日本）
 
 1. [法人番号公表サイト](https://www.houjin-bangou.nta.go.jp/)でアプリケーションIDを申請
+
+### FEC API（米国の政治献金データ）
+
+1. [FEC API Developer Portal](https://api.open.fec.gov/developers/)でアカウントを作成
+2. APIキーを取得して`.env`ファイルに`FEC_API_KEY`として設定
+3. 注意: FEC APIは無料で利用可能だが、レート制限があります
+
+### OpenSecrets API（廃止済み）
+
+**注意**: OpenSecrets APIは2025年4月15日に廃止されました。
+カスタムデータソリューションが必要な場合は、commercial@opensecrets.org に連絡してください。
 2. `.env`に`HOUJIN_BANGOU_API_ID`を設定
 
 詳細: `docs/japan_corporate_api_setup.md`
@@ -292,33 +310,16 @@ uv sync --reinstall
 
 ### モジュールのインポートエラー
 
-各ツールのリポジトリが正しくクローンされているか確認：
+使用するツールのリポジトリが正しくクローンされているか確認：
 
 ```bash
+# EDGARを使用する場合
 ls -la tools/EDGAR
+
+# sugartrailを使用する場合
 ls -la tools/sugartrail
-ls -la tools/name-variant-search
+uv pip list | grep sugartrail
 ```
-
-### APIキーが設定されていない場合
-
-各ツールはAPIキーが未設定の場合、警告を表示して仮データを返します。実際のデータを取得するには、適切なAPIキーを設定してください。
-
-### よくある問題
-
-1. **依存関係のエラー**
-   - 各ツールのREADMEを確認
-   - Pythonのバージョンを確認（3.9以上が必要）
-   - `uv sync`を再実行して依存関係を再インストール
-
-2. **パスの問題**
-   - 絶対パスを使用することを推奨
-   - 環境変数PATHを確認
-   - `uv run`を使用することで、仮想環境のパス問題を回避可能
-
-3. **APIキーや認証情報**
-   - 各ツールで必要な認証情報を確認
-   - `.env`ファイルを使用して管理
 
 ## 参考リンク
 

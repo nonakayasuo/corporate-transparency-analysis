@@ -29,9 +29,10 @@ try:
     )
 
     SUGARTRAIL_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     SUGARTRAIL_AVAILABLE = False
-    print("警告: sugartrailツールが利用できません。tools/sugartrailを確認してください。")
+    # 警告は統合分析スクリプトで表示されるため、ここでは表示しない
+    # print(f"警告: sugartrailツールが利用できません。tools/sugartrailを確認してください。エラー: {e}")
 
 
 def search_company_sugartrail(company_name: str) -> Optional[dict]:
