@@ -97,7 +97,7 @@ source .venv/bin/activate  # macOS/Linux
 # .venv\Scripts\activate  # Windows
 
 # または、uv runを使用して直接コマンドを実行（仮想環境の管理が不要）
-uv run python scripts/basic_analysis.py --company "Company Name"
+uv run python src/backend/basic_analysis.py --company "Company Name"
 ```
 
 ### ステップ4: 各ツールの個別セットアップ
@@ -191,7 +191,7 @@ cd /path/to/corporate-transparency-analysis
 uv run python -c "import pandas, numpy, matplotlib; print('基本パッケージ OK')"
 
 # スクリプトの動作確認
-uv run python scripts/basic_analysis.py --help
+uv run python src/backend/basic_analysis.py --help
 
 # EDGARの動作確認
 cd tools/EDGAR
@@ -215,13 +215,13 @@ cd ../..
 
 ```bash
 # 日本の企業分析
-uv run python scripts/integrated_analysis.py --company "BMSG" --country JP --website "https://bmsg.tokyo/"
+uv run python src/backend/integrated_analysis.py --company "BMSG" --country JP --website "https://bmsg.tokyo/"
 
 # 米国企業分析
-uv run python scripts/integrated_analysis.py --company "Apple Inc." --country US
+uv run python src/backend/integrated_analysis.py --company "Apple Inc." --country US
 
 # 英国企業分析
-uv run python scripts/integrated_analysis.py --company "Company Name" --country UK
+uv run python src/backend/integrated_analysis.py --company "Company Name" --country UK
 ```
 
 ### Web UI
@@ -241,15 +241,16 @@ npm run dev
 corporate-transparency-analysis/
 ├── README.md                 # このファイル
 ├── pyproject.toml            # Python依存関係
-├── frontend/                 # Next.jsフロントエンド
-├── scripts/                  # 統合分析用スクリプト
-│   ├── basic_analysis.py
-│   ├── integrated_analysis.py
-│   ├── japan_corporate_fetcher.py
-│   ├── financial_data_fetcher.py
-│   ├── edgar_integration.py
-│   ├── sugartrail_integration.py
-│   └── name_variant_integration.py
+├── src/
+│   ├── backend/             # バックエンド処理（統合分析スクリプト）
+│   │   ├── basic_analysis.py
+│   │   ├── integrated_analysis.py
+│   │   ├── japan_corporate_fetcher.py
+│   │   ├── financial_data_fetcher.py
+│   │   ├── edgar_integration.py
+│   │   ├── sugartrail_integration.py
+│   │   └── name_variant_integration.py
+│   └── frontend/            # Next.jsフロントエンド
 ├── tools/                    # 各ツールのリポジトリ
 │   ├── EDGAR/
 │   ├── sugartrail/

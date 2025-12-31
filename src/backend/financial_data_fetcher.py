@@ -8,22 +8,23 @@
 - その他の公開データソース
 """
 
-import sys
 import os
-import requests
+import sys
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional
+
+import requests
 from dotenv import load_dotenv
 
 # プロジェクトルートをパスに追加
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 # 環境変数を読み込む
 load_dotenv(project_root / ".env")
 
 
-def fetch_gbizinfo_data(corporate_number: str) -> Optional[Dict]:
+def fetch_gbizinfo_data(corporate_number: str) -> Optional[dict]:
     """
     gBizINFO APIから財務データを取得
 
@@ -70,7 +71,7 @@ def fetch_gbizinfo_data(corporate_number: str) -> Optional[Dict]:
         return None
 
 
-def fetch_financial_data_from_web(company_name: str) -> Optional[Dict]:
+def fetch_financial_data_from_web(company_name: str) -> Optional[dict]:
     """
     ウェブ検索から財務データを取得（フォールバック）
 
@@ -101,7 +102,7 @@ def fetch_financial_data_from_web(company_name: str) -> Optional[Dict]:
     return None
 
 
-def get_financial_data(company_name: str, corporate_number: Optional[str] = None) -> Optional[Dict]:
+def get_financial_data(company_name: str, corporate_number: Optional[str] = None) -> Optional[dict]:
     """
     財務データを取得（複数のソースから試行）
 

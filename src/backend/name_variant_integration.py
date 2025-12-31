@@ -5,14 +5,14 @@ name-variant-searchツール統合モジュール
 Bellingcatのname-variant-searchツールを使用して名前のバリエーションを生成します。
 """
 
-import sys
-import subprocess
 import json
+import re
+import subprocess
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 # プロジェクトルートをパスに追加
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).parent.parent.parent
 name_variant_path = project_root / "tools" / "name-variant-search"
 
 
@@ -20,13 +20,16 @@ name_variant_path = project_root / "tools" / "name-variant-search"
 def check_node_available() -> bool:
     """Node.jsが利用可能かチェック"""
     try:
-        result = subprocess.run(["node", "--version"], capture_output=True, text=True, timeout=5)
-        return result.returncode == 0
+        result = subprocess.run(
+            ["node", "--version"], check=False, capture_output=True, text=True, timeout=5
+        )
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return False
+    else:
+        return result.returncode == 0
 
 
-def generate_name_variants(name: str) -> List[str]:
+def generate_name_variants(name: str) -> list[str]:
     """
     名前のバリエーションを生成
 
@@ -36,7 +39,7 @@ def generate_name_variants(name: str) -> List[str]:
     Returns:
         名前のバリエーションのリスト
     """
-    # 基本的なバリエーションを生成（Python実装）
+    # 基本的なバリエーションを生成(Python実装)
     variants = set()
 
     # 元の名前
@@ -66,7 +69,7 @@ def generate_name_variants(name: str) -> List[str]:
         # ハイフン区切り
         variants.add("-".join(parts))
 
-    # カンマの処理（姓, 名 の形式）
+    # カンマの処理(姓, 名 の形式)
     if "," in name:
         parts = [p.strip() for p in name.split(",")]
         if len(parts) >= 2:
@@ -75,8 +78,6 @@ def generate_name_variants(name: str) -> List[str]:
             variants.add(f"{parts[1]}, {parts[0]}")
 
     # 括弧内の情報を除去
-    import re
-
     name_no_paren = re.sub(r"\([^)]*\)", "", name).strip()
     if name_no_paren != name:
         variants.add(name_no_paren)
@@ -86,12 +87,12 @@ def generate_name_variants(name: str) -> List[str]:
             variants.add(content)
 
     # 重複を除去してソート
-    return sorted(list(variants))
+    return sorted(variants)
 
 
-def generate_name_variants_js(name: str) -> Optional[List[str]]:
+def generate_name_variants_js(name: str) -> Optional[list[str]]:
     """
-    JavaScript版のname-variant-searchツールを使用（Node.jsが必要）
+    JavaScript版のname-variant-searchツールを使用(Node.jsが必要)
 
     Args:
         name: 元の名前
@@ -113,6 +114,7 @@ def generate_name_variants_js(name: str) -> Optional[List[str]]:
         # Node.jsスクリプトを実行
         result = subprocess.run(
             ["node", str(script_path), name],
+            check=False,
             capture_output=True,
             text=True,
             timeout=10,
@@ -122,11 +124,10 @@ def generate_name_variants_js(name: str) -> Optional[List[str]]:
         if result.returncode == 0:
             try:
                 variants = json.loads(result.stdout)
-                return variants
             except json.JSONDecodeError:
                 # JSONでない場合は行ごとに分割
                 variants = [line.strip() for line in result.stdout.split("\n") if line.strip()]
-                return variants
+            return variants
         else:
             return None
 

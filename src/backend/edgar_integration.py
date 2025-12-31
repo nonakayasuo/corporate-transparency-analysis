@@ -6,26 +6,35 @@ BellingcatのEDGARツールを使用してSECデータを取得します。
 """
 
 import sys
-from pathlib import Path
-from typing import Optional, Dict, List
 from datetime import datetime
+from pathlib import Path
+from typing import Optional
 
 # プロジェクトルートをパスに追加
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).parent.parent.parent
 edgar_path = project_root / "tools" / "EDGAR" / "src"
 sys.path.insert(0, str(edgar_path))
 
 try:
-    from edgar_tool.text_search import search as edgar_search
     from edgar_tool.search_params import SearchParams
+    from edgar_tool.text_search import search as edgar_search
 
     EDGAR_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     EDGAR_AVAILABLE = False
-    print("警告: EDGARツールが利用できません。tools/EDGARを確認してください。")
+    import_error = str(e)
+    if "typer" in import_error.lower():
+        print("警告: EDGARツールの依存関係がインストールされていません。")
+        print("  以下のコマンドでインストールしてください:")
+        print("  cd tools/EDGAR && poetry install")
+        print("  または")
+        print("  uv pip install -e tools/EDGAR")
+    else:
+        print(f"警告: EDGARツールが利用できません: {import_error}")
+        print("  tools/EDGARを確認してください。")
 
 
-def search_company_edgar(company_name: str, max_results: int = 10) -> Optional[Dict]:
+def search_company_edgar(company_name: str, max_results: int = 10) -> Optional[dict]:
     """
     EDGARツールを使用して企業を検索
 
@@ -41,14 +50,34 @@ def search_company_edgar(company_name: str, max_results: int = 10) -> Optional[D
 
     try:
         # EDGARのテキスト検索を使用
-        # 企業名をキーワードとして検索
-        search_params = SearchParams(keywords=[company_name], date_range_select="5y")
-
-        # 検索を実行
+        # まずentityパラメータで企業名を検索（より正確）
         print(f"  → EDGAR検索を実行中: {company_name}")
-        search_results = edgar_search(search_params=search_params, max_results=max_results)
 
-        if not search_results:
+        # 方法1: entityパラメータを使用（企業名として検索）
+        try:
+            search_params = SearchParams(entity=company_name, date_range_select="5y")
+            search_results = edgar_search(search_params=search_params, max_results=max_results)
+
+            if search_results and len(search_results) > 0:
+                print("  → entity検索で結果を取得")
+        except Exception as e1:
+            print(f"  → entity検索でエラー: {e1}")
+            search_results = None
+
+        # 方法2: keywordsパラメータを使用（フォールバック）
+        if not search_results or len(search_results) == 0:
+            try:
+                print("  → keywords検索を試行中...")
+                search_params = SearchParams(keywords=[company_name], date_range_select="5y")
+                search_results = edgar_search(search_params=search_params, max_results=max_results)
+
+                if search_results and len(search_results) > 0:
+                    print("  → keywords検索で結果を取得")
+            except Exception as e2:
+                print(f"  → keywords検索でエラー: {e2}")
+                search_results = None
+
+        if not search_results or len(search_results) == 0:
             print(f"  → 警告: {company_name} の検索結果が見つかりませんでした")
             return None
 
@@ -85,7 +114,7 @@ def search_company_edgar(company_name: str, max_results: int = 10) -> Optional[D
         return None
 
 
-def get_company_filings(cik: str, form_type: Optional[str] = None) -> List[Dict]:
+def get_company_filings(cik: str, form_type: Optional[str] = None) -> list[dict]:
     """
     企業の提出書類を取得
 

@@ -5,14 +5,15 @@ sugartrailツール統合モジュール
 Bellingcatのsugartrailツールを使用してCompanies Houseデータを取得します。
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional
+
 from dotenv import load_dotenv
 
 # プロジェクトルートをパスに追加
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).parent.parent.parent
 sugartrail_path = project_root / "tools" / "sugartrail"
 sys.path.insert(0, str(sugartrail_path))
 
@@ -21,10 +22,10 @@ load_dotenv(project_root / ".env")
 
 try:
     from sugartrail.api import (
+        get_appointments,
         get_company,
         get_company_officers,
         get_psc,
-        get_appointments,
     )
 
     SUGARTRAIL_AVAILABLE = True
@@ -33,7 +34,7 @@ except ImportError:
     print("警告: sugartrailツールが利用できません。tools/sugartrailを確認してください。")
 
 
-def search_company_sugartrail(company_name: str) -> Optional[Dict]:
+def search_company_sugartrail(company_name: str) -> Optional[dict]:
     """
     sugartrailツールを使用して企業を検索
 
@@ -58,7 +59,7 @@ def search_company_sugartrail(company_name: str) -> Optional[Dict]:
         return None
 
     try:
-        # 企業IDを取得（実際の実装では検索APIを使用）
+        # 企業IDを取得(実際の実装では検索APIを使用)
         # ここでは簡易的な実装
         company_id = None  # 実際には検索結果から取得
 
@@ -83,7 +84,7 @@ def search_company_sugartrail(company_name: str) -> Optional[Dict]:
         return None
 
 
-def get_officer_network(officer_id: str) -> Optional[Dict]:
+def get_officer_network(officer_id: str) -> Optional[dict]:
     """
     役員のネットワークを取得
 
@@ -98,14 +99,15 @@ def get_officer_network(officer_id: str) -> Optional[Dict]:
 
     try:
         appointments = get_appointments(officer_id)
-
+    except Exception as e:
+        print(f"役員ネットワーク取得エラー: {e}")
+        return None
+    else:
         return {
             "officer_id": officer_id,
             "appointments": appointments,
             "source": "sugartrail",
         }
-
-    except Exception as e:
         print(f"役員ネットワーク取得エラー: {e}")
         return None
 

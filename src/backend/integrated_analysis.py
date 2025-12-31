@@ -6,18 +6,44 @@
 組み合わせて包括的な企業・金融の透明性分析を実行します。
 """
 
-import sys
 import argparse
 import json
-from pathlib import Path
+import sys
 from datetime import datetime
+from pathlib import Path
 
-# プロジェクトルートをパスに追加
-project_root = Path(__file__).parent.parent
+# プロジェクトルートをパスに追加（インポート前に設定）
+project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(project_root / "tools" / "EDGAR"))
 sys.path.insert(0, str(project_root / "tools" / "sugartrail"))
 sys.path.insert(0, str(project_root / "tools" / "name-variant-search"))
+
+# 条件付きインポート
+try:
+    from src.backend.name_variant_integration import generate_name_variants
+except ImportError:
+    generate_name_variants = None
+
+try:
+    from src.backend.edgar_integration import search_company_edgar
+
+    # 関数が存在するか確認
+    if search_company_edgar is None:
+        search_company_edgar = None
+except (ImportError, AttributeError) as e:
+    print(f"  → 警告: EDGAR統合モジュールのインポートに失敗: {e}")
+    search_company_edgar = None
+
+try:
+    from src.backend.sugartrail_integration import search_company_sugartrail
+except ImportError:
+    search_company_sugartrail = None
+
+try:
+    from src.backend.japan_corporate_fetcher import analyze_japanese_company
+except ImportError:
+    analyze_japanese_company = None
 
 
 def setup_directories():
@@ -34,13 +60,11 @@ def get_name_variants(name):
     print(f"  → 名前のバリエーションを検索: {name}")
 
     # name-variant-search統合モジュールを使用
-    try:
-        from scripts.name_variant_integration import generate_name_variants
-
+    if generate_name_variants is not None:
         variants = generate_name_variants(name)
         print(f"  → {len(variants)}個のバリエーションを生成")
         return variants
-    except ImportError:
+    else:
         # フォールバック: 基本的なバリエーション
         variants = [name, name.upper(), name.lower(), name.title()]
         return variants
@@ -48,7 +72,7 @@ def get_name_variants(name):
 
 def fetch_edgar_data(company_name, country="US"):
     """
-    EDGARを使用してSECデータを取得（米国企業の場合）
+    EDGARを使用してSECデータを取得(米国企業の場合)
     """
     if country != "US":
         print("  → EDGARは米国企業のみ対応。スキップします。")
@@ -57,35 +81,36 @@ def fetch_edgar_data(company_name, country="US"):
     print(f"  → EDGARからSECデータを取得: {company_name}")
 
     # EDGAR統合モジュールを使用
-    try:
-        from scripts.edgar_integration import search_company_edgar
+    if search_company_edgar is not None:
+        try:
+            edgar_result = search_company_edgar(company_name)
 
-        edgar_result = search_company_edgar(company_name)
-
-        if edgar_result:
-            data = {
-                "company_name": company_name,
-                "cik": edgar_result.get("cik", "0000000000"),
-                "filings": edgar_result.get("filings", []),
-                "search_results": edgar_result,
-                "timestamp": datetime.now().isoformat(),
-                "source": "edgar_tool",
-            }
-            return data
-        else:
-            print("  → 警告: EDGAR検索結果が取得できませんでした")
+            if edgar_result:
+                data = {
+                    "company_name": company_name,
+                    "cik": edgar_result.get("cik", "0000000000"),
+                    "filings": edgar_result.get("filings", []),
+                    "search_results": edgar_result,
+                    "timestamp": datetime.now().isoformat(),
+                    "source": "edgar_tool",
+                }
+                return data
+            else:
+                print("  → 警告: EDGAR検索結果が取得できませんでした")
+                return None
+        except Exception as e:
+            print(f"  → エラー: EDGARデータ取得中にエラーが発生しました - {e}")
             return None
-    except ImportError as e:
-        print(f"  → 警告: EDGAR統合モジュールが利用できません - {e}")
-        return None
-    except Exception as e:
-        print(f"  → エラー: EDGARデータ取得中にエラーが発生しました - {e}")
+    else:
+        print("  → 警告: EDGAR統合モジュールが利用できません")
+        print("  → ヒント: EDGARツールの依存関係をインストールしてください")
+        print("    cd tools/EDGAR && poetry install")
         return None
 
 
 def fetch_sugartrail_data(company_name, country="UK"):
     """
-    sugartrailを使用してCompanies Houseデータを取得（英国企業の場合）
+    sugartrailを使用してCompanies Houseデータを取得(英国企業の場合)
     """
     if country != "UK":
         print("  → sugartrailは英国企業のみ対応。スキップします。")
@@ -94,9 +119,7 @@ def fetch_sugartrail_data(company_name, country="UK"):
     print(f"  → sugartrailからCompanies Houseデータを取得: {company_name}")
 
     # sugartrail統合モジュールを使用
-    try:
-        from scripts.sugartrail_integration import search_company_sugartrail
-
+    if search_company_sugartrail is not None:
         sugartrail_result = search_company_sugartrail(company_name)
 
         if sugartrail_result:
@@ -111,8 +134,6 @@ def fetch_sugartrail_data(company_name, country="UK"):
                 "source": "sugartrail",
             }
             return data
-    except ImportError:
-        print("  → 警告: sugartrail統合モジュールが利用できません")
 
     # フォールバック: 仮データ
     data = {
@@ -135,12 +156,10 @@ def fetch_japan_corporate_data(company_name, website_url=None):
     print(f"  → 日本の企業情報を取得: {company_name}")
 
     # japan_corporate_fetcherモジュールをインポート
-    try:
-        from scripts.japan_corporate_fetcher import analyze_japanese_company
-
+    if analyze_japanese_company is not None:
         result = analyze_japanese_company(company_name, website_url)
         return result
-    except ImportError:
+    else:
         print("  → 警告: japan_corporate_fetcherモジュールが見つかりません")
         return None
 
@@ -238,7 +257,8 @@ def generate_report(company_name, edgar_data, sugartrail_data, japan_data, netwo
     }
 
     # JSONファイルに保存
-    with open(output_file, "w", encoding="utf-8") as f:
+    output_path = Path(output_file)
+    with output_path.open("w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
 
     print(f"\n[結果] レポートを保存: {output_file}")
@@ -253,10 +273,10 @@ def main():
         "--country",
         default="US",
         choices=["US", "UK", "JP"],
-        help="企業の所在国（US, UK, JP）",
+        help="企業の所在国(US, UK, JP)",
     )
-    parser.add_argument("--officer", help="分析する役員名（オプション）")
-    parser.add_argument("--website", help="企業のウェブサイトURL（オプション、JPの場合に有効）")
+    parser.add_argument("--officer", help="分析する役員名(オプション)")
+    parser.add_argument("--website", help="企業のウェブサイトURL(オプション、JPの場合に有効)")
 
     args = parser.parse_args()
 
@@ -272,14 +292,13 @@ def main():
         print(f"役員名: {args.officer}")
     print("=" * 60)
 
-    # ステップ1: 名前のバリエーションを取得
     print("\n[ステップ1] 名前のバリエーションを検索")
     company_variants = get_name_variants(args.company)
     officer_variants = []
     if args.officer:
         officer_variants = get_name_variants(args.officer)
 
-    # ステップ2: EDGARデータを取得（米国企業の場合）
+    # ステップ2: EDGARデータを取得(米国企業の場合)
     print("\n[ステップ2] SECデータを取得")
     edgar_data = None
     if args.country == "US":
@@ -291,7 +310,7 @@ def main():
             except Exception as e:
                 print(f"  → エラー: {variant} のデータ取得に失敗 - {e}")
 
-    # ステップ3: sugartrailデータを取得（英国企業の場合）
+    # ステップ3: sugartrailデータを取得(英国企業の場合)
     print("\n[ステップ3] Companies Houseデータを取得")
     sugartrail_data = None
     if args.country == "UK":
@@ -303,7 +322,7 @@ def main():
             except Exception as e:
                 print(f"  → エラー: {variant} のデータ取得に失敗 - {e}")
 
-    # ステップ3.5: 日本の企業データを取得（日本企業の場合）
+    # ステップ3.5: 日本の企業データを取得(日本企業の場合)
     japan_data = None
     if args.country == "JP":
         print("\n[ステップ3.5] 日本の企業情報を取得")
@@ -312,11 +331,9 @@ def main():
         except Exception as e:
             print(f"  → エラー: 日本の企業データ取得に失敗 - {e}")
 
-    # ステップ4: ネットワーク分析
     all_variants = company_variants + officer_variants
     network = analyze_network(edgar_data, sugartrail_data, japan_data, all_variants)
 
-    # ステップ5: レポート生成
     output_file = (
         project_root
         / "data"

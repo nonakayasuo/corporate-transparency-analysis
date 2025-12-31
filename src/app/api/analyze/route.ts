@@ -18,10 +18,10 @@ export async function POST(request: NextRequest) {
     }
 
     // プロジェクトルートのパスを取得
-    const projectRoot = path.join(process.cwd(), "..");
+    const projectRoot = process.cwd();
 
     // 統合分析スクリプトを実行
-    let command = `cd "${projectRoot}" && uv run python scripts/integrated_analysis.py --company "${company}" --country ${country}`;
+    let command = `cd "${projectRoot}" && uv run python src/backend/integrated_analysis.py --company "${company}" --country ${country}`;
 
     if (website) {
       command += ` --website "${website}"`;
@@ -36,20 +36,49 @@ export async function POST(request: NextRequest) {
       timeout: 300000, // 5分
     });
 
+    // uvのビルドメッセージを除外して、実際のエラーのみをログに記録
+    if (stderr) {
+      // uvの正常なビルドメッセージを除外（正規表現でより正確に判定）
+      const uvBuildPattern = /^(Building|Built|Uninstalled|Installed).*$/m;
+      const stderrLines = stderr.split("\n");
+      const actualErrors = stderrLines.filter(
+        (line) => line.trim() && !uvBuildPattern.test(line.trim())
+      );
+
+      if (actualErrors.length > 0) {
+        // 実際のエラーのみをログに記録
+        console.error("Pythonスクリプトのエラー出力:", actualErrors.join("\n"));
+      }
+    }
+
     // 出力からJSONファイルのパスを抽出
     const outputMatch = stdout.match(/data\/output\/([^\s]+\.json)/);
 
     if (outputMatch) {
       const fs = await import("fs/promises");
       const jsonPath = path.join(projectRoot, "data", "output", outputMatch[1]);
-      const jsonContent = await fs.readFile(jsonPath, "utf-8");
-      const analysisResult = JSON.parse(jsonContent);
 
-      return NextResponse.json({
-        success: true,
-        data: analysisResult,
-        output: stdout,
-      });
+      try {
+        const jsonContent = await fs.readFile(jsonPath, "utf-8");
+        const analysisResult = JSON.parse(jsonContent);
+
+        return NextResponse.json({
+          success: true,
+          data: analysisResult,
+          output: stdout,
+          stderr: stderr || undefined,
+        });
+      } catch (fileError) {
+        console.error("JSONファイルの読み込みエラー:", fileError);
+        return NextResponse.json({
+          success: false,
+          error: "結果ファイルの読み込みに失敗しました",
+          output: stdout,
+          stderr: stderr || undefined,
+          details:
+            fileError instanceof Error ? fileError.message : String(fileError),
+        });
+      }
     }
 
     // JSONファイルが見つからない場合でも、stdoutを返す
@@ -57,7 +86,8 @@ export async function POST(request: NextRequest) {
       success: true,
       data: null,
       output: stdout,
-      error: stderr,
+      stderr: stderr || undefined,
+      warning: "結果ファイルが見つかりませんでした。出力を確認してください。",
     });
   } catch (error: unknown) {
     console.error("分析エラー:", error);

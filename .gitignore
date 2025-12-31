@@ -55,7 +55,39 @@ frontend/out/
 frontend/node_modules/
 frontend/.env*.local
 
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
 # 個人情報を含むドキュメント
 docs/利用目的書.pdf
 docs/利用目的書.md
 
+# Cursor設定（レガシー形式、新しい形式は.cursor/rulesを使用）
+.cursorrules
+
+# Pythonキャッシュ（再確認）
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 生成されたPDFファイル
+*.pdf
+!docs/利用目的書.pdf
+
+# 一時的な分析結果ファイル
+data/output/*.json
+
+# ルートのpublicディレクトリ（frontend/publicは含める）
+/public/
+
+# ルートのNext.js設定ファイル（frontend/内のものは含める）
+/eslint.config.mjs
+/next-env.d.ts
+/next.config.ts
+/postcss.config.mjs
+.next

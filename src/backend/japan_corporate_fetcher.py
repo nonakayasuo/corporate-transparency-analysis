@@ -8,27 +8,34 @@
 - 企業の公式ウェブサイト情報
 """
 
-import sys
 import argparse
 import json
-import requests
 import os
 import re
-from pathlib import Path
+import sys
 from datetime import datetime
-from typing import Optional, Dict
-from dotenv import load_dotenv
+from pathlib import Path
+from typing import Optional
+
+import requests
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+
+# 条件付きインポート
+try:
+    from src.backend.financial_data_fetcher import get_financial_data
+except ImportError:
+    get_financial_data = None
 
 # プロジェクトルートをパスに追加
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 # 環境変数を読み込む
 load_dotenv(project_root / ".env")
 
 
-def fetch_corporate_number(company_name: str) -> Optional[Dict]:
+def fetch_corporate_number(company_name: str) -> Optional[dict]:
     """
     国税庁法人番号システムAPIから企業情報を取得
 
@@ -87,7 +94,7 @@ def fetch_corporate_number(company_name: str) -> Optional[Dict]:
 
 def fetch_company_website_info(
     company_name: str, website_url: Optional[str] = None
-) -> Optional[Dict]:
+) -> Optional[dict]:
     """
     企業の公式ウェブサイトから情報を取得
     """
@@ -140,34 +147,32 @@ def fetch_company_website_info(
             if title_tag:
                 data["title"] = title_tag.get_text(strip=True)
 
-            # 構造化データ（JSON-LD）から情報を取得
+            # 構造化データ(JSON-LD)から情報を取得
             json_ld_scripts = soup.find_all("script", type="application/ld+json")
             for script in json_ld_scripts:
                 try:
                     json_data = json.loads(script.string)
-                    if isinstance(json_data, dict):
-                        # Organization型の構造化データを探す
-                        if json_data.get("@type") == "Organization":
-                            if "name" in json_data:
-                                data["structured_name"] = json_data["name"]
-                            if "description" in json_data:
-                                data["description"] = (
-                                    data.get("description") or json_data["description"]
-                                )
-                            if "address" in json_data:
-                                addr = json_data["address"]
-                                if isinstance(addr, dict):
-                                    data["location"] = addr.get("addressLocality", "")
-                                elif isinstance(addr, str):
-                                    data["location"] = addr
-                            if "foundingDate" in json_data:
-                                data["established"] = json_data["foundingDate"]
-                            if "founder" in json_data:
-                                data["founder"] = json_data["founder"]
+                    if isinstance(json_data, dict) and json_data.get("@type") == "Organization":
+                        if "name" in json_data:
+                            data["structured_name"] = json_data["name"]
+                        if "description" in json_data:
+                            data["description"] = (
+                                data.get("description") or json_data["description"]
+                            )
+                        if "address" in json_data:
+                            addr = json_data["address"]
+                            if isinstance(addr, dict):
+                                data["location"] = addr.get("addressLocality", "")
+                            elif isinstance(addr, str):
+                                data["location"] = addr
+                        if "foundingDate" in json_data:
+                            data["established"] = json_data["foundingDate"]
+                        if "founder" in json_data:
+                            data["founder"] = json_data["founder"]
                 except (json.JSONDecodeError, KeyError):
                     continue
 
-            # HTMLから直接情報を抽出（フォールバック）
+            # HTMLから直接情報を抽出(フォールバック)
             # 会社概要、企業情報などのセクションを探す
             about_sections = soup.find_all(
                 ["div", "section"],
@@ -211,18 +216,16 @@ def fetch_company_website_info(
 
 def fetch_financial_data(
     company_name: str, corporate_number: Optional[str] = None
-) -> Optional[Dict]:
+) -> Optional[dict]:
     """
-    財務データを取得（官報決算データベースなどから）
+    財務データを取得(官報決算データベースなどから)
 
     注意: 実際のデータ取得には、各データベースへのアクセス権限が必要です
     """
     print(f"  → 財務データを取得: {company_name}")
 
     # 財務データ取得モジュールを使用
-    try:
-        from scripts.financial_data_fetcher import get_financial_data
-
+    if get_financial_data is not None:
         financial_data = get_financial_data(company_name, corporate_number)
 
         if financial_data:
@@ -232,15 +235,12 @@ def fetch_financial_data(
         else:
             print("  → 警告: 財務データが見つかりませんでした")
             return None
-    except ImportError as e:
-        print(f"  → 警告: 財務データ取得モジュールが利用できません - {e}")
-        return None
-    except Exception as e:
-        print(f"  → エラー: 財務データ取得中にエラーが発生しました - {e}")
+    else:
+        print("  → 警告: 財務データ取得モジュールが利用できません")
         return None
 
 
-def analyze_japanese_company(company_name: str, website_url: Optional[str] = None) -> Dict:
+def analyze_japanese_company(company_name: str, website_url: Optional[str] = None) -> dict:
     """
     日本の企業情報を包括的に分析
     """
@@ -278,8 +278,8 @@ def analyze_japanese_company(company_name: str, website_url: Optional[str] = Non
 def main():
     parser = argparse.ArgumentParser(description="日本の企業情報を取得")
     parser.add_argument("--company", required=True, help="分析する企業名")
-    parser.add_argument("--website", help="企業のウェブサイトURL（オプション）")
-    parser.add_argument("--output", help="出力ファイルパス（オプション）")
+    parser.add_argument("--website", help="企業のウェブサイトURL(オプション)")
+    parser.add_argument("--output", help="出力ファイルパス(オプション)")
 
     args = parser.parse_args()
 
@@ -298,7 +298,8 @@ def main():
             / f"{safe_company_name}_japan_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         )
 
-    with open(output_file, "w", encoding="utf-8") as f:
+    output_path = Path(output_file)
+    with output_path.open("w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
 
     print("\n" + "=" * 60)

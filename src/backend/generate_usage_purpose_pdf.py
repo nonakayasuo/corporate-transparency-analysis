@@ -5,19 +5,20 @@
 法人番号システムWeb-API申請用の利用目的書をPDF形式で生成します。
 """
 
+import argparse
 import sys
-import os
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from typing import Optional
 
 try:
     from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import mm
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
     from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
     from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 except ImportError:
     print("エラー: reportlabがインストールされていません。")
     print("以下のコマンドでインストールしてください:")
@@ -25,7 +26,7 @@ except ImportError:
     sys.exit(1)
 
 # プロジェクトルートをパスに追加
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).parent.parent.parent
 
 
 def register_japanese_font():
@@ -38,14 +39,12 @@ def register_japanese_font():
     # HeiseiMin-W3: 平成明朝体W3
     try:
         pdfmetrics.registerFont(UnicodeCIDFont("HeiseiKakuGo-W3"))
-        print("✓ 日本語フォント（HeiseiKakuGo-W3）を登録しました")
-        return "HeiseiKakuGo-W3"
+        print("✓ 日本語フォント(HeiseiKakuGo-W3)を登録しました")
     except Exception as e1:
         print(f"警告: HeiseiKakuGo-W3の登録に失敗: {e1}")
         try:
             pdfmetrics.registerFont(UnicodeCIDFont("HeiseiMin-W3"))
-            print("✓ 日本語フォント（HeiseiMin-W3）を登録しました")
-            return "HeiseiMin-W3"
+            print("✓ 日本語フォント(HeiseiMin-W3)を登録しました")
         except Exception as e2:
             print(f"警告: HeiseiMin-W3の登録に失敗: {e2}")
             # 最後の手段として、システムフォントを試す
@@ -54,7 +53,7 @@ def register_japanese_font():
                 "/System/Library/Fonts/STHeiti Light.ttc",
             ]
             for font_path in font_paths:
-                if os.path.exists(font_path):
+                if Path(font_path).exists():
                     try:
                         if font_path.endswith(".ttc"):
                             # TTCファイルはサポートされていない可能性が高い
@@ -66,13 +65,17 @@ def register_japanese_font():
                         continue
             print("警告: 日本語フォントの登録に失敗しました。デフォルトフォントを使用します。")
             return "Helvetica"
+        else:
+            return "HeiseiMin-W3"
+    else:
+        return "HeiseiKakuGo-W3"
 
 
 def create_usage_purpose_pdf(
     output_path: Path,
     applicant_name: str = "[申請者の氏名または名称]",
     email: str = "[メールアドレス]",
-    application_date: str = None,
+    application_date: Optional[str] = None,
 ):
     """
     利用目的書PDFを作成
@@ -94,7 +97,7 @@ def create_usage_purpose_pdf(
         bottomMargin=20 * mm,
     )
 
-    # スタイルの設定（日本語フォントを使用）
+    # スタイルの設定(日本語フォントを使用)
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
         "CustomTitle",
@@ -162,7 +165,7 @@ def create_usage_purpose_pdf(
     story.append(Paragraph("2. プログラムの名称", heading_style))
     story.append(
         Paragraph(
-            "企業・金融の透明性分析ツール（Corporate Transparency Analysis Tool）", normal_style
+            "企業・金融の透明性分析ツール(Corporate Transparency Analysis Tool)", normal_style
         )
     )
     story.append(Spacer(1, 6 * mm))
@@ -174,7 +177,7 @@ def create_usage_purpose_pdf(
     story.append(
         Paragraph(
             "本プログラムは、企業・金融の透明性を分析するための統合ツールです。"
-            "法人番号システムWeb-APIを使用して、日本の企業情報（法人番号、商号、所在地、法人種別など）を取得し、企業分析に活用します。",
+            "法人番号システムWeb-APIを使用して、日本の企業情報(法人番号、商号、所在地、法人種別など)を取得し、企業分析に活用します。",
             normal_style,
         )
     )
@@ -184,7 +187,7 @@ def create_usage_purpose_pdf(
     story.append(Paragraph("(1) 企業情報の検索・取得", normal_style))
     story.append(Paragraph("・法人名による企業情報の検索", normal_style))
     story.append(Paragraph("・法人番号による企業情報の取得", normal_style))
-    story.append(Paragraph("・企業の基本3情報（商号、所在地、法人番号）の取得", normal_style))
+    story.append(Paragraph("・企業の基本3情報(商号、所在地、法人番号)の取得", normal_style))
     story.append(Spacer(1, 3 * mm))
 
     story.append(Paragraph("(2) 企業分析・可視化", normal_style))
@@ -208,7 +211,7 @@ def create_usage_purpose_pdf(
     )
     story.append(Spacer(1, 3 * mm))
     story.append(Paragraph("Web UI経由:", normal_style))
-    story.append(Paragraph("1. フロントエンドアプリケーション（Next.js）を起動", normal_style))
+    story.append(Paragraph("1. フロントエンドアプリケーション(Next.js)を起動", normal_style))
     story.append(Paragraph("2. ブラウザから企業名、所在国、ウェブサイトURL等を入力", normal_style))
     story.append(Paragraph("3. 分析実行ボタンをクリック", normal_style))
     story.append(Paragraph("4. 取得した企業情報を表示・可視化", normal_style))
@@ -216,7 +219,7 @@ def create_usage_purpose_pdf(
 
     story.append(Paragraph("3.4 取得するデータ項目", subheading_style))
     story.append(
-        Paragraph("法人番号システムWeb-APIから以下のデータ項目を取得します：", normal_style)
+        Paragraph("法人番号システムWeb-APIから以下のデータ項目を取得します:", normal_style)
     )
     story.append(Paragraph("・法人番号", normal_style))
     story.append(Paragraph("・商号又は名称", normal_style))
@@ -245,7 +248,7 @@ def create_usage_purpose_pdf(
     story.append(Paragraph("・個人情報の取り扱いには特に注意を払います", normal_style))
     story.append(
         Paragraph(
-            "・取得元の明示を行います（「このサービスは、国税庁法人番号システムのWeb-API機能を利用して取得した情報をもとに作成しているが、サービスの内容は国税庁によって保証されたものではない」）",
+            "・取得元の明示を行います(「このサービスは、国税庁法人番号システムのWeb-API機能を利用して取得した情報をもとに作成しているが、サービスの内容は国税庁によって保証されたものではない」)",
             normal_style,
         )
     )
@@ -254,7 +257,7 @@ def create_usage_purpose_pdf(
     story.append(Paragraph("3.7 技術仕様", subheading_style))
     story.append(Paragraph("・開発言語: Python 3.9以上", normal_style))
     story.append(
-        Paragraph("・API利用方式: REST API（法人番号システムWeb-API Ver.4.0）", normal_style)
+        Paragraph("・API利用方式: REST API(法人番号システムWeb-API Ver.4.0)", normal_style)
     )
     story.append(Paragraph("・実行環境: ローカル環境またはサーバー環境", normal_style))
     story.append(Paragraph("・データ形式: JSON形式でのデータ取得", normal_style))
@@ -264,7 +267,7 @@ def create_usage_purpose_pdf(
     story.append(Paragraph("・開発・テスト段階: 1日あたり数回〜数十回程度", normal_style))
     story.append(
         Paragraph(
-            "・本番利用: 必要に応じて適度な頻度で利用（過度なリクエストは行いません）", normal_style
+            "・本番利用: 必要に応じて適度な頻度で利用(過度なリクエストは行いません)", normal_style
         )
     )
     story.append(Spacer(1, 6 * mm))
@@ -291,24 +294,19 @@ def create_usage_purpose_pdf(
 
 
 def main():
-    import argparse
-
     parser = argparse.ArgumentParser(description="利用目的書PDFを生成")
     parser.add_argument("--applicant-name", default="[申請者の氏名または名称]", help="申請者名")
     parser.add_argument("--email", default="[メールアドレス]", help="連絡先メールアドレス")
     parser.add_argument(
-        "--output", default=None, help="出力PDFファイルのパス（デフォルト: docs/利用目的書.pdf）"
+        "--output", default=None, help="出力PDFファイルのパス(デフォルト: docs/利用目的書.pdf)"
     )
     parser.add_argument(
-        "--application-date", default=None, help="申請日（YYYY/MM/DD形式、例: 2025/12/31）"
+        "--application-date", default=None, help="申請日(YYYY/MM/DD形式、例: 2025/12/31)"
     )
 
     args = parser.parse_args()
 
-    if args.output:
-        output_path = Path(args.output)
-    else:
-        output_path = project_root / "docs" / "利用目的書.pdf"
+    output_path = Path(args.output) if args.output else project_root / "docs" / "利用目的書.pdf"
 
     # 出力ディレクトリを作成
     output_path.parent.mkdir(parents=True, exist_ok=True)

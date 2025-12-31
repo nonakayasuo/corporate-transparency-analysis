@@ -55,6 +55,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [debugOutput, setDebugOutput] = useState<string | null>(null);
 
   const handleAnalyze = async () => {
     if (!company.trim()) {
@@ -82,14 +83,25 @@ export default function Home() {
 
       const data = await response.json();
 
+      // デバッグ出力を保存
+      if (data.output) {
+        setDebugOutput(data.output);
+      }
+
       if (!response.ok || !data.success) {
-        throw new Error(data.error || "分析に失敗しました");
+        const errorMsg = data.error || "分析に失敗しました";
+        const details = data.details || data.output || "";
+        throw new Error(`${errorMsg}\n${details ? `\n詳細:\n${details}` : ""}`);
       }
 
       if (data.data) {
         setResult(data.data);
+        setError(null);
       } else {
         setError("結果データが見つかりませんでした");
+        if (data.output) {
+          setDebugOutput(data.output);
+        }
       }
     } catch (err: unknown) {
       const errorMessage =
@@ -192,8 +204,15 @@ export default function Home() {
 
               {error && (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-                  <p className="text-sm text-red-800 dark:text-red-200">
+                  <p className="text-sm text-red-800 dark:text-red-200 whitespace-pre-wrap">
                     {error}
+                  </p>
+                </div>
+              )}
+              {debugOutput && (
+                <div className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md">
+                  <p className="text-xs font-mono text-slate-600 dark:text-slate-400 whitespace-pre-wrap max-h-60 overflow-y-auto">
+                    {debugOutput}
                   </p>
                 </div>
               )}
