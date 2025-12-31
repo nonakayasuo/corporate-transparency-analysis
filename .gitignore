@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv/
+
+# uv
+.venv/
+uv.lock
+
+# データファイル
+data/
+*.json
+*.csv
+*.xlsx
+*.xls
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 環境変数
+.env
+.env.local
+
+# ログ
+*.log
+
+# 一時ファイル
+*.tmp
+*.temp
+
+# ツールのリポジトリ（クローンしたもの）
+tools/
+
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+frontend/.env*.local
+
+# 個人情報を含むドキュメント
+docs/利用目的書.pdf
+docs/利用目的書.md
+
